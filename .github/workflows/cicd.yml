@@ -46,7 +46,8 @@ jobs:
       - name: Compute image names (lowercase for GHCR)
         shell: bash
         run: |
-          echo "IMAGE_PREFIX=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+          IMAGE_PREFIX="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          echo "IMAGE_PREFIX=$IMAGE_PREFIX" >> "$GITHUB_ENV"
           echo "REGISTRY=ghcr.io" >> $GITHUB_ENV
           echo "TAG=${GITHUB_SHA}" >> $GITHUB_ENV
 
