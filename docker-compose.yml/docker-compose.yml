@@ -1,0 +1,20 @@
+services:
+  backend:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-yourname/healthpulse-cicd}-backend:${TAG:-dev}
+    build: ./backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/v1/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  frontend:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-yourname/healthpulse-cicd}-frontend:${TAG:-dev}
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8080}:80"
