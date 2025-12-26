@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-yourname/healthpulse-cicd}-backend:${TAG:-dev}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-adedipe23/healthpulse-cicd}-backend:${TAG:-dev}
     build: ./backend
     restart: unless-stopped
     healthcheck:
@@ -10,7 +10,7 @@ services:
       retries: 10
 
   frontend:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-yourname/healthpulse-cicd}-frontend:${TAG:-dev}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-adedipe23/healthpulse-cicd}-frontend:${TAG:-dev}
     build: ./frontend
     restart: unless-stopped
     depends_on:
