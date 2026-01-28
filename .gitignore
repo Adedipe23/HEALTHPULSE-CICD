@@ -5,10 +5,7 @@ __pycache__/
 .venv/
 venv/
 ENV/
-.env
-.env.local
-.env.production
-.env.development
+
 
 # --- JavaScript / Node ---
 node_modules/
@@ -25,10 +22,6 @@ build/
 
 # Then, "unignore" specific documentation files
 !README.md
-!DEPLOYMENT.md
-!QUICK_START.md
-!SETUP_SUMMARY.md
-!PRE_DEPLOYMENT_CHECKLIST.md
 
 # --- OS / Misc ---
 .DS_Store
