@@ -1,0 +1,45 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.env
+.env.local
+.env.production
+.env.development
+
+# --- JavaScript / Node ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.next/
+dist/
+build/
+
+# --- Markdown Logic ---
+# First, ignore all .md files
+*.md
+
+# Then, "unignore" specific documentation files
+!README.md
+!DEPLOYMENT.md
+!QUICK_START.md
+!SETUP_SUMMARY.md
+!PRE_DEPLOYMENT_CHECKLIST.md
+
+# --- OS / Misc ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Security / Deployment ---
+*.pem
+*.key
+deploy_key*
+traefik-certificates/
+*.log
+logs/

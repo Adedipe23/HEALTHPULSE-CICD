@@ -2,14 +2,14 @@ name: CI-CD
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "develop"]
 
 permissions:
   contents: read
   packages: write
 
 concurrency:
-  group: deploy-main
+  group: deploy-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -90,14 +90,14 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
-    name: Deploy with Docker Compose (self-hosted runner)
-    runs-on: self-hosted
+    name: Deploy to Oracle Linux Server
+    runs-on: ubuntu-latest
     needs: [build-and-push]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Compute deployment env (mac bash compatible)
+      - name: Set environment variables
         shell: bash
         run: |
           IMAGE_PREFIX="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
@@ -105,31 +105,66 @@ jobs:
           echo "REGISTRY=ghcr.io" >> "$GITHUB_ENV"
           echo "TAG=${GITHUB_SHA}" >> "$GITHUB_ENV"
 
-      - name: Login to GHCR (pull images)
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Set domain based on branch
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "DOMAIN=${{ secrets.DOMAIN_PROD }}" >> "$GITHUB_ENV"
+            echo "ENVIRONMENT=production" >> "$GITHUB_ENV"
+          else
+            echo "DOMAIN=${{ secrets.DOMAIN_DEV }}" >> "$GITHUB_ENV"
+            echo "ENVIRONMENT=development" >> "$GITHUB_ENV"
+          fi
 
-      - name: Write .env for docker compose
+      - name: Setup SSH key
         shell: bash
         run: |
-          cat > .env <<EOF
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Copy deployment files to server
+        shell: bash
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            docker-compose.traefik.yml \
+            ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/home/${{ secrets.SSH_USER }}/healthpulse/
+
+      - name: Deploy to Oracle server
+        shell: bash
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} bash << 'ENDSSH'
+          set -e
+          cd /home/${{ secrets.SSH_USER }}/healthpulse
+
+          # Create .env file
+          cat > .env << 'ENVEOF'
           REGISTRY=${{ env.REGISTRY }}
           IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
           TAG=${{ env.TAG }}
-          APP_PORT=8080
-          EOF
+          ENVIRONMENT=${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+          DOMAIN=${{ env.DOMAIN }}
+          ACME_EMAIL=${{ secrets.ACME_EMAIL }}
+          ENVEOF
 
-      - name: Pull & restart stack
-        shell: bash
-        run: |
-          docker compose pull
-          docker compose up -d --no-build
-          docker compose ps
+          # Login to GHCR
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Cleanup old images
-        shell: bash
-        run: |
+          # Pull and deploy
+          docker compose -f docker-compose.traefik.yml pull
+          docker compose -f docker-compose.traefik.yml up -d
+
+          # Show status
+          docker compose -f docker-compose.traefik.yml ps
+
+          # Cleanup
           docker image prune -f
+
+          echo "✅ Deployment complete!"
+          echo "🌐 Application available at: https://${{ env.DOMAIN }}"
+          ENDSSH
+
+      - name: Cleanup SSH key
+        if: always()
+        shell: bash
+        run: |
+          rm -f ~/.ssh/deploy_key
